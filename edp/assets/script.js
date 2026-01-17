@@ -470,6 +470,24 @@ function initAuthForms() {
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
 
+    // tab switcher (if auth tabs exist)
+    const tabLogin = document.getElementById('tabLogin');
+    const tabSignup = document.getElementById('tabSignup');
+    function showLogin() {
+        if (loginForm) loginForm.classList.remove('hidden');
+        if (signupForm) signupForm.classList.add('hidden');
+        if (tabLogin) tabLogin.classList.add('active');
+        if (tabSignup) tabSignup.classList.remove('active');
+    }
+    function showSignup() {
+        if (loginForm) loginForm.classList.add('hidden');
+        if (signupForm) signupForm.classList.remove('hidden');
+        if (tabLogin) tabLogin.classList.remove('active');
+        if (tabSignup) tabSignup.classList.add('active');
+    }
+    if (tabLogin) tabLogin.addEventListener('click', showLogin);
+    if (tabSignup) tabSignup.addEventListener('click', showSignup);
+
     if (signupForm) {
         signupForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -499,7 +517,7 @@ function initAuthForms() {
             saveUser({ name, email, password: pw });
             msg.textContent = 'Account created — redirecting to login...';
             msg.style.color = '#064e3b';
-            setTimeout(() => { window.location.href = 'login.html'; }, 800);
+            setTimeout(() => { showLogin(); }, 300);
         });
     }
 

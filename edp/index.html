@@ -9,8 +9,8 @@
 <body>
     <nav class="top-nav">
         <div class="nav-inner">
-            <a href="login.html" class="btn nav-btn">Log in</a>
-            <a href="signup.html" class="btn nav-btn nav-btn-outline">Sign up</a>
+            <a href="#authPanel" class="btn nav-btn">Log in</a>
+            <a href="#authPanel" class="btn nav-btn nav-btn-outline">Sign up</a>
         </div>
     </nav>
     <div class="container home" id="pageContent">
@@ -21,9 +21,54 @@
 
         <section class="hero" style="margin-top:18px;">
             <p class="description">An Arduino-driven training device with precision sensors and adaptive targets designed to improve reaction time, coordination, and movement efficiency. This demo visualizes sample training sessions and showcases features you can build on.</p>
-            <p style="margin-top:18px;color:#475569">Ready to get started? <a href="login.html" style="color:#2563eb;font-weight:600;text-decoration:none">Log in</a> or <a href="signup.html" style="color:#2563eb;font-weight:600;text-decoration:none">Sign up</a>.</p>
+            <p style="margin-top:18px;color:#475569">Ready to get started? <a href="#authPanel" style="color:#2563eb;font-weight:600;text-decoration:none">Log in</a> or <a href="#authPanel" style="color:#2563eb;font-weight:600;text-decoration:none">Sign up</a>.</p>
         </section>
 
+        <!-- Combined auth panel: login + signup on same page -->
+        <section id="authPanel" class="auth-panel" style="margin-top:28px;">
+            <div class="auth-tabs" id="authTabs">
+                <div class="auth-tab active" id="tabLogin">Log in</div>
+                <div class="auth-tab" id="tabSignup">Sign up</div>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-row">
+                    <label for="loginEmail">Email</label>
+                    <input id="loginEmail" type="email" required placeholder="you@example.com">
+                </div>
+                <div class="form-row">
+                    <label for="loginPassword">Password</label>
+                    <input id="loginPassword" type="password" required placeholder="Password">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Log in</button>
+                </div>
+                <p id="loginMessage" class="muted"></p>
+            </form>
+
+            <form id="signupForm" class="auth-form hidden">
+                <div class="form-row">
+                    <label for="signupName">Full name</label>
+                    <input id="signupName" type="text" required placeholder="Your name">
+                </div>
+                <div class="form-row">
+                    <label for="signupEmail">Email</label>
+                    <input id="signupEmail" type="email" required placeholder="you@example.com">
+                </div>
+                <div class="form-row">
+                    <label for="signupPassword">Password</label>
+                    <input id="signupPassword" type="password" required placeholder="Choose a password">
+                </div>
+                <div class="form-row">
+                    <label for="signupConfirm">Confirm password</label>
+                    <input id="signupConfirm" type="password" required placeholder="Repeat password">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Create account</button>
+                </div>
+                <p id="signupMessage" class="muted"></p>
+            </form>
+        </section>
         <section class="features" style="margin-top:28px;">
             <div class="feature-card">
                 <h3>Real-time Feedback</h3>
