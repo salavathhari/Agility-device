@@ -16,57 +16,17 @@
         <header>
             <h1>Agility & Reflex Training — Interactive Light System</h1>
             <div style="font-size:0.95rem;color:#475569;">Demo interface • Visualize sessions • Track progress</div>
+            <div style="margin-left:18px;font-size:0.9rem;color:#475569;">
+                API: <span id="apiStatus" style="font-weight:700;color:#b45309">checking...</span>
+            </div>
         </header>
 
         <section class="hero" style="margin-top:18px;">
             <p class="description">An Arduino-driven training device with precision sensors and adaptive targets designed to improve reaction time, coordination, and movement efficiency. This demo visualizes sample training sessions and showcases features you can build on.</p>
-            <p style="margin-top:18px;color:#475569">Ready to get started? <a href="#authPanel" style="color:#2563eb;font-weight:600;text-decoration:none">Log in</a> or <a href="#authPanel" style="color:#2563eb;font-weight:600;text-decoration:none">Sign up</a>.</p>
-        </section>
-
-        <!-- Combined auth panel: login + signup on same page -->
-        <section id="authPanel" class="auth-panel" style="margin-top:28px;">
-            <div class="auth-tabs" id="authTabs">
-                <div class="auth-tab active" id="tabLogin">Log in</div>
-                <div class="auth-tab" id="tabSignup">Sign up</div>
+            <p style="margin-top:18px;color:#475569">Ready to get started? Visit the dashboard to try a demo.</p>
+            <div style="margin-top:18px;">
+                <a id="goDashboardBtn" href="dashboard.html" class="btn" style="display:inline-block;padding:10px 16px;border-radius:8px;background:linear-gradient(90deg,#2563eb,#1e40af);color:#fff;text-decoration:none;font-weight:600;">Go to Dashboard</a>
             </div>
-
-            <form id="loginForm" class="auth-form">
-                <div class="form-row">
-                    <label for="loginEmail">Email</label>
-                    <input id="loginEmail" type="email" required placeholder="you@example.com">
-                </div>
-                <div class="form-row">
-                    <label for="loginPassword">Password</label>
-                    <input id="loginPassword" type="password" required placeholder="Password">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn">Log in</button>
-                </div>
-                <p id="loginMessage" class="muted"></p>
-            </form>
-
-            <form id="signupForm" class="auth-form hidden">
-                <div class="form-row">
-                    <label for="signupName">Full name</label>
-                    <input id="signupName" type="text" required placeholder="Your name">
-                </div>
-                <div class="form-row">
-                    <label for="signupEmail">Email</label>
-                    <input id="signupEmail" type="email" required placeholder="you@example.com">
-                </div>
-                <div class="form-row">
-                    <label for="signupPassword">Password</label>
-                    <input id="signupPassword" type="password" required placeholder="Choose a password">
-                </div>
-                <div class="form-row">
-                    <label for="signupConfirm">Confirm password</label>
-                    <input id="signupConfirm" type="password" required placeholder="Repeat password">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn">Create account</button>
-                </div>
-                <p id="signupMessage" class="muted"></p>
-            </form>
         </section>
         <section class="features" style="margin-top:28px;">
             <div class="feature-card">

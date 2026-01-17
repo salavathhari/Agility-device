@@ -276,6 +276,64 @@ h2, h3 {
     }
 }
 
+/* Dashboard-specific layout improvements */
+.container.dashboard {
+    max-width: 1200px;
+}
+.container.dashboard header {
+    flex-wrap: nowrap;
+}
+.container.dashboard header h1 {
+    flex: 1 1 auto;
+}
+.container.dashboard header .btn-back {
+    margin-left: 12px;
+}
+
+/* Streak / rewards: responsive grid */
+.streak-rewards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+.streak-rewards .card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 18px;
+    min-height: 120px;
+}
+
+/* Leaderboard area: two-column layout with fixed side card */
+.leaderboard > div {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 12px;
+}
+.leaderboard .card { text-align: left; }
+.leaderboard #leaderboardList { min-height: 84px; }
+
+/* Controls: align groups neatly */
+.controls { display: flex; gap: 18px; align-items: center; justify-content: space-between; }
+.controls .control-group { min-width: 180px; }
+.controls .actions { margin-left: auto; display:flex; gap:12px; align-items:center }
+
+/* Summary cards: increase padding and center titles */
+.summary-cards .card { padding: 20px 18px; }
+
+/* Chart sizing */
+.chart-card canvas { width: 100% !important; height: 260px !important; }
+
+@media (max-width: 900px) {
+    .container.dashboard header { flex-direction: column; align-items: flex-start; gap:8px; }
+    .leaderboard > div { grid-template-columns: 1fr; }
+    .controls { flex-direction: column; align-items: stretch; }
+    .controls .actions { margin-left: 0; justify-content: flex-start }
+}
+
 /* QR code block styling */
 .qr-wrap { max-width:740px; margin: 12px auto 0; display:flex; align-items:center; justify-content:center; gap:12px }
 .qr-wrap img { width:160px; height:160px; object-fit:cover; border-radius:8px }

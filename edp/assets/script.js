@@ -575,17 +575,43 @@ function initAuthForms() {
     }
 }
 
+// Simple API status check (calls /api/ping)
+async function initApiStatus() {
+    const el = document.getElementById('apiStatus');
+    if (!el) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    try {
+        const res = await fetch('/api/ping', { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) {
+            el.textContent = 'online';
+            el.style.color = '#047857';
+            el.title = 'API reachable';
+            return true;
+        }
+    } catch (e) {
+        // fallthrough to offline state
+    }
+    el.textContent = 'offline';
+    el.style.color = '#b91c1c';
+    el.title = 'API unreachable — using local fallback';
+    return false;
+}
+
 // On page load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         if (isDashboardPage()) initDashboard();
         initAuthForms();
         initQR();
+        initApiStatus();
     });
 } else {
     if (isDashboardPage()) initDashboard();
     initAuthForms();
     initQR();
+    initApiStatus();
 }
 
 // Generate QR code image that links to the current page URL (uses Google Chart API)
