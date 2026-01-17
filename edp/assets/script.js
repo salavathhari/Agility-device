@@ -553,8 +553,22 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         if (isDashboardPage()) initDashboard();
         initAuthForms();
+        initQR();
     });
 } else {
     if (isDashboardPage()) initDashboard();
     initAuthForms();
+    initQR();
+}
+
+// Generate QR code image that links to the current page URL (uses Google Chart API)
+function initQR(){
+    const img = document.getElementById('qrCode');
+    if (!img) return;
+    try{
+        const url = window.location.href;
+        const qrSrc = 'https://chart.googleapis.com/chart?cht=qr&chs=280x280&chl=' + encodeURIComponent(url) + '&choe=UTF-8';
+        img.src = qrSrc;
+        img.alt = 'Scan to open ' + url;
+    } catch(e){ console.error('QR generation failed', e); }
 }
