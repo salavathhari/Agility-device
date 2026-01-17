@@ -516,8 +516,16 @@ function initAuthForms() {
                 });
                 const j = await res.json();
                 if (!res.ok) { msg.textContent = j.error || 'Signup failed'; msg.style.color = '#7f1d1d'; return; }
-                msg.textContent = 'Account created — please log in.'; msg.style.color = '#064e3b';
-                setTimeout(() => { showLogin(); }, 500);
+                // Auto-login on successful signup (workaround for serverless ephemeral storage)
+                msg.textContent = 'Account created — logging you in...'; msg.style.color = '#064e3b';
+                try {
+                    const user = j.user;
+                    sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                } catch (e) {
+                    // fallback to showing login tab
+                    setTimeout(() => { showLogin(); }, 500);
+                }
             }catch(err){ msg.textContent = 'Network error'; msg.style.color = '#7f1d1d'; }
         });
     }
