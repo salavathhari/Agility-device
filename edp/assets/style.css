@@ -8,6 +8,24 @@ body {
     padding: 0;
 }
 
+/* Top navigation — compact, no container card */
+.top-nav { padding: 10px 0; }
+.top-nav .nav-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+}
+.top-nav .nav-btn { padding: 8px 14px; font-size: 0.95rem; box-shadow: none; }
+.top-nav .nav-btn-outline { background: #eef2ff; color: #1e3a8a; }
+
+/* Adjust default .btn for nav small size without changing site-wide */
+.btn.nav-btn { padding: 8px 14px; border-radius: 8px; }
+
+
 .container {
     max-width: 900px;
     margin: 40px auto;
