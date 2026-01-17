@@ -227,6 +227,231 @@ function stopSession() {
     document.getElementById('startBtn').disabled = false;
     // if timer expired and no displayed attempts, ensure UI shows final state
     document.getElementById('countdownDisplay').textContent = formatDuration(Math.max(0, remainingSec || 0));
+
+    // When session stops, if attempts were recorded, update streaks & rewards
+    if (displayedAttempts && displayedAttempts.length > 0) {
+        try {
+            handleSessionCompletion(displayedAttempts);
+        } catch (err) {
+            console.error('Streak handling failed', err);
+        }
+    }
+}
+
+// -----------------------
+// Streaks, points, rewards
+// -----------------------
+function getCurrentUserKey() {
+    const demo = sessionStorage.getItem('demo_user');
+    if (!demo) return 'progress_guest';
+    try { const user = JSON.parse(demo); return `progress_${user.email.replace(/[^a-z0-9@.\-_]/gi,'')}`; } catch { return 'progress_guest'; }
+}
+
+function loadProgress() {
+    const key = getCurrentUserKey();
+    const raw = localStorage.getItem(key);
+    if (!raw) return { streak: 0, lastDate: null, points: 0, rewards: [] };
+    try { return JSON.parse(raw); } catch { return { streak: 0, lastDate: null, points: 0, rewards: [] }; }
+}
+
+function saveProgress(p) {
+    const key = getCurrentUserKey();
+    localStorage.setItem(key, JSON.stringify(p));
+}
+
+function isoDate(d) { const dt = d ? new Date(d) : new Date(); return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).toISOString().slice(0,10); }
+
+function daysBetween(a, b) {
+    const da = new Date(a);
+    const db = new Date(b);
+    return Math.round((db - da) / (1000*60*60*24));
+}
+
+function handleSessionCompletion(attempts) {
+    const progress = loadProgress();
+    const today = isoDate();
+    const yesterday = isoDate(new Date(Date.now() - 24*60*60*1000));
+
+    // prevent double-counting same day
+    if (progress.lastDate === today) {
+        // already counted today
+        updateStreakUI(progress);
+        return;
+    }
+
+    // compute session quality -> points
+    const total = attempts.length;
+    const avg = total ? Math.round(attempts.reduce((s,a)=>s+a.reactionTime,0)/total) : 0;
+    const hits = attempts.filter(a=>a.result==='Hit').length;
+    const accuracy = total ? Math.round((hits/total)*100) : 0;
+
+    // Points formula: base + accuracy bonus + speed bonus
+    let points = 10; // base
+    points += Math.round(accuracy / 10); // 0-10
+    points += Math.max(0, Math.round((300 - avg) / 50)); // small bonus for fast avg
+
+    // update streak
+    if (progress.lastDate === yesterday) {
+        progress.streak = (progress.streak || 0) + 1;
+    } else {
+        progress.streak = 1; // reset
+    }
+    progress.lastDate = today;
+    progress.points = (progress.points || 0) + points;
+
+    // check rewards
+    const unlocked = progress.rewards || [];
+    const rewardTiers = [3, 7, 14, 30];
+    rewardTiers.forEach(t => {
+        if (progress.streak >= t && !unlocked.includes(t)) {
+            unlocked.push(t);
+        }
+    });
+    progress.rewards = unlocked;
+
+    saveProgress(progress);
+    updateStreakUI(progress);
+
+    // show a short celebratory message
+    showToast(`Session recorded — +${points} pts! Streak: ${progress.streak} day(s)`);
+    // update leaderboard with new points
+    try { updateLeaderboardEntry(points); } catch (e) { console.error('Leaderboard update failed', e); }
+}
+
+function updateStreakUI(progress) {
+    const p = progress || loadProgress();
+    const streakEl = document.getElementById('streakCount');
+    const pointsEl = document.getElementById('totalPoints');
+    const rewardsEl = document.getElementById('rewardsList');
+    const nextEl = document.getElementById('nextReward');
+    const statusEl = document.getElementById('streakStatus');
+
+    if (streakEl) streakEl.textContent = (p.streak || 0).toString();
+    if (pointsEl) pointsEl.textContent = (p.points || 0).toString();
+    if (statusEl) {
+        if (!p.lastDate) statusEl.textContent = 'Start your first session today!';
+        else statusEl.textContent = `Last: ${p.lastDate}`;
+    }
+    if (rewardsEl) {
+        rewardsEl.innerHTML = '';
+        (p.rewards||[]).forEach(r => {
+            const btn = document.createElement('span');
+            btn.className = 'badge';
+            btn.style.padding = '6px 8px';
+            btn.style.background = '#f1f5f9';
+            btn.style.border = '1px solid #cbd5e1';
+            btn.textContent = `${r}-day`;
+            rewardsEl.appendChild(btn);
+        });
+    }
+    if (nextEl) {
+        const tiers = [3,7,14,30];
+        const next = tiers.find(t => !(p.rewards||[]).includes(t));
+        nextEl.textContent = next ? `${next}-day streak: unlock badge` : 'All rewards unlocked — great job!';
+    }
+}
+
+function showToast(msg) {
+    let t = document.getElementById('sr_toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'sr_toast';
+        t.style.position = 'fixed';
+        t.style.right = '18px';
+        t.style.bottom = '18px';
+        t.style.background = '#0ea5e9';
+        t.style.color = '#fff';
+        t.style.padding = '12px 16px';
+        t.style.borderRadius = '8px';
+        t.style.boxShadow = '0 6px 20px rgba(2,6,23,0.12)';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    setTimeout(()=>{ if (t) t.style.opacity='0'; }, 4200);
+}
+
+// ensure UI is updated on dashboard load
+function initStreaks() {
+    updateStreakUI(loadProgress());
+    updateLeaderboardUI();
+}
+
+// -----------------------
+// Leaderboard (client-side demo)
+// -----------------------
+function loadLeaderboard() {
+    try { return JSON.parse(localStorage.getItem('ag_leaderboard') || '[]'); } catch { return []; }
+}
+
+function saveLeaderboard(lb) {
+    localStorage.setItem('ag_leaderboard', JSON.stringify(lb));
+}
+
+function updateLeaderboardEntry(sessionPoints) {
+    const demo = sessionStorage.getItem('demo_user');
+    const lb = loadLeaderboard();
+    let email = 'guest';
+    let name = 'Guest';
+    if (demo) {
+        try { const u = JSON.parse(demo); email = u.email || email; name = u.name || name; } catch {}
+    }
+
+    // find existing entry
+    let entry = lb.find(e => e.email === email);
+    if (!entry) {
+        entry = { name, email, points: 0, streak: 0, lastActive: null };
+        lb.push(entry);
+    }
+
+    // sync with saved progress if available
+    const progressKey = `progress_${email.replace(/[^a-z0-9@.\-_]/gi,'')}`;
+    const prog = (() => { try { return JSON.parse(localStorage.getItem(progressKey) || 'null'); } catch { return null; } })();
+    if (prog && typeof prog.points === 'number') {
+        entry.points = prog.points;
+        entry.streak = prog.streak || entry.streak;
+        entry.lastActive = prog.lastDate || entry.lastActive;
+    } else {
+        // otherwise increment points by sessionPoints
+        entry.points = (entry.points || 0) + (sessionPoints || 0);
+        entry.lastActive = new Date().toISOString().slice(0,10);
+    }
+
+    // save and refresh UI
+    saveLeaderboard(lb);
+    updateLeaderboardUI();
+}
+
+function updateLeaderboardUI() {
+    const lb = loadLeaderboard();
+    // sort descending by points
+    lb.sort((a,b) => (b.points||0) - (a.points||0));
+    const listEl = document.getElementById('leaderboardList');
+    const yourPosEl = document.getElementById('yourPosition');
+    const yourNote = document.getElementById('yourPointsNote');
+    if (listEl) {
+        listEl.innerHTML = '';
+        const top = lb.slice(0,10);
+        if (top.length === 0) {
+            listEl.innerHTML = '<div style="padding:8px;color:#475569;">No entries yet — be the first!</div>';
+        } else {
+            top.forEach((e, i) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems='center';
+                row.style.padding = '6px 4px';
+                row.innerHTML = `<div style="display:flex;gap:8px;align-items:center;"><strong>#${i+1}</strong><div style="min-width:120px;">${e.name}</div></div><div style="color:#0f172a;font-weight:600;">${e.points} pts</div>`;
+                listEl.appendChild(row);
+            });
+        }
+    }
+
+    // show current user's rank
+    const demo = sessionStorage.getItem('demo_user');
+    let email = 'guest';
+    if (demo) { try { email = JSON.parse(demo).email || 'guest'; } catch {} }
+    const rank = lb.findIndex(e => e.email === email);
+    if (yourPosEl) yourPosEl.textContent = rank >= 0 ? `#${rank+1} — ${lb[rank].points} pts` : 'Unranked — complete a session to join';
+    if (yourNote) yourNote.textContent = demo ? `Logged in as ${JSON.parse(demo).name || demo}` : 'Sign up to persist progress across devices.';
 }
 
 // --- Simple client-side auth (demo only) ---

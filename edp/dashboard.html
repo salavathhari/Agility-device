@@ -24,6 +24,41 @@
             <h1>Training Session Dashboard</h1>
             <a href="index.html" class="btn btn-back">&#8592; Home</a>
         </header>
+        <section class="streak-rewards" style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div class="card" style="min-width:160px;">
+                <h4>Daily Streak</h4>
+                <p style="font-size:22px;margin:6px 0;" id="streakCount">0</p>
+                <small id="streakStatus">Keep training daily to build a streak!</small>
+            </div>
+            <div class="card" style="min-width:160px;">
+                <h4>Points</h4>
+                <p style="font-size:22px;margin:6px 0;" id="totalPoints">0</p>
+                <small id="pointsStatus">Earn points for each session.</small>
+            </div>
+            <div class="card" style="flex:1;min-width:220px;">
+                <h4>Next Reward</h4>
+                <p id="nextReward">3-day streak: Bronze Badge</p>
+            </div>
+            <div class="card" style="min-width:220px;">
+                <h4>Rewards</h4>
+                <div id="rewardsList" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+            </div>
+        </section>
+        <section class="leaderboard" style="margin-top:14px;">
+            <h3>Leaderboard</h3>
+            <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+                <div class="card" style="flex:1;min-width:280px;">
+                    <div id="leaderboardList" style="padding:8px 6px;"></div>
+                </div>
+                <div style="min-width:220px;">
+                    <div class="card">
+                        <h4>Your Position</h4>
+                        <p id="yourPosition">—</p>
+                        <small id="yourPointsNote">Login to save progress.</small>
+                    </div>
+                </div>
+            </div>
+        </section>
         <section class="controls">
             <div class="control-group">
                 <label for="sportSelect">Sport</label>
