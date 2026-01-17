@@ -489,7 +489,7 @@ function initAuthForms() {
     if (tabSignup) tabSignup.addEventListener('click', showSignup);
 
     if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = (document.getElementById('signupName').value || '').trim();
             const email = (document.getElementById('signupEmail').value || '').trim();
@@ -507,43 +507,35 @@ function initAuthForms() {
                 msg.style.color = '#7f1d1d';
                 return;
             }
-            if (findUserByEmail(email)) {
-                msg.textContent = 'An account with this email already exists.';
-                msg.style.color = '#7f1d1d';
-                return;
-            }
 
-            // NOTE: This demo stores credentials in localStorage. Do NOT use in production.
-            saveUser({ name, email, password: pw });
-            msg.textContent = 'Account created — redirecting to login...';
-            msg.style.color = '#064e3b';
-            setTimeout(() => { showLogin(); }, 300);
+            // POST to serverless signup endpoint
+            try{
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password: pw })
+                });
+                const j = await res.json();
+                if (!res.ok) { msg.textContent = j.error || 'Signup failed'; msg.style.color = '#7f1d1d'; return; }
+                msg.textContent = 'Account created — please log in.'; msg.style.color = '#064e3b';
+                setTimeout(() => { showLogin(); }, 500);
+            }catch(err){ msg.textContent = 'Network error'; msg.style.color = '#7f1d1d'; }
         });
     }
 
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = (document.getElementById('loginEmail').value || '').trim();
             const pw = document.getElementById('loginPassword').value || '';
             const msg = document.getElementById('loginMessage');
-
-            const user = findUserByEmail(email);
-            if (!user) {
-                msg.textContent = 'No account found. Please sign up.';
-                msg.style.color = '#b45309';
-                return;
-            }
-            if (user.password !== pw) {
-                msg.textContent = 'Incorrect password.';
-                msg.style.color = '#7f1d1d';
-                return;
-            }
-
-            sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
-            msg.textContent = 'Login successful — redirecting...';
-            msg.style.color = '#064e3b';
-            setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+            try{
+                const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ email, password: pw }) });
+                const j = await res.json();
+                if (!res.ok) { msg.textContent = j.error || 'Login failed'; msg.style.color = '#b45309'; return; }
+                sessionStorage.setItem('demo_user', JSON.stringify({ name: j.user.name, email: j.user.email }));
+                msg.textContent = 'Login successful — redirecting...'; msg.style.color = '#064e3b';
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+            }catch(err){ msg.textContent = 'Network error'; msg.style.color = '#7f1d1d'; }
         });
     }
 }
