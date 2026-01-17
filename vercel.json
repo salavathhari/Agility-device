@@ -5,5 +5,8 @@
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/edp/$1" },
     { "src": "/(.*)", "dest": "/edp/index.html" }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
