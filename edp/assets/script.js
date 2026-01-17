@@ -567,8 +567,10 @@ function initQR(){
     if (!img) return;
     try{
         const url = window.location.href;
-        const qrSrc = 'https://chart.googleapis.com/chart?cht=qr&chs=280x280&chl=' + encodeURIComponent(url) + '&choe=UTF-8';
+        // Use api.qrserver.com which reliably returns a QR image for the given data
+        const size = 300;
+        const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encodeURIComponent(url) + '&format=png';
         img.src = qrSrc;
-        img.alt = 'Scan to open ' + url;
+        img.alt = 'Scan to open this site on your phone';
     } catch(e){ console.error('QR generation failed', e); }
 }
