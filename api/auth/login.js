@@ -1,11 +1,20 @@
+
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
-const DB_PATH = path.join(process.cwd(), 'user.db');
+const TMP_DB = path.join(os.tmpdir(), 'user.db');
+const BUNDLED_DB = path.join(process.cwd(), 'user.db');
+
+async function ensureDB() {
+  try { await fs.access(TMP_DB); return TMP_DB; } catch (e) {
+    try { await fs.access(BUNDLED_DB); await fs.copyFile(BUNDLED_DB, TMP_DB); return TMP_DB; } catch (err) { await fs.writeFile(TMP_DB, '[]', 'utf8'); return TMP_DB; }
+  }
+}
 
 async function readDB(){
-  try{ const raw = await fs.readFile(DB_PATH, 'utf8'); return JSON.parse(raw || '[]'); }catch(e){ return []; }
+  try{ const p = await ensureDB(); const raw = await fs.readFile(p, 'utf8'); return JSON.parse(raw || '[]'); }catch(e){ return []; }
 }
 
 function hashPassword(password, salt){

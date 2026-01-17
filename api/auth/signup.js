@@ -1,12 +1,36 @@
+
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
-const DB_PATH = path.join(process.cwd(), 'user.db');
+// Use a writable path in serverless environments (/tmp) and fall back to
+// copying the bundled user.db into tmp on first use.
+const TMP_DB = path.join(os.tmpdir(), 'user.db');
+const BUNDLED_DB = path.join(process.cwd(), 'user.db');
+
+async function ensureDB() {
+  try {
+    await fs.access(TMP_DB);
+    return TMP_DB;
+  } catch (e) {
+    // tmp db doesn't exist yet; try to copy bundled DB or create empty
+    try {
+      await fs.access(BUNDLED_DB);
+      await fs.copyFile(BUNDLED_DB, TMP_DB);
+      return TMP_DB;
+    } catch (err) {
+      // create empty
+      await fs.writeFile(TMP_DB, '[]', 'utf8');
+      return TMP_DB;
+    }
+  }
+}
 
 async function readDB(){
   try{
-    const raw = await fs.readFile(DB_PATH, 'utf8');
+    const p = await ensureDB();
+    const raw = await fs.readFile(p, 'utf8');
     return JSON.parse(raw || '[]');
   }catch(e){
     return [];
@@ -14,7 +38,8 @@ async function readDB(){
 }
 
 async function writeDB(data){
-  await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
+  const p = await ensureDB();
+  await fs.writeFile(p, JSON.stringify(data, null, 2), 'utf8');
 }
 
 function hashPassword(password, salt){
