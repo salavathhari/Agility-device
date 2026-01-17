@@ -1,6 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/assets/(.*)", "destination": "/edp/assets/$1" },
-    { "source": "/(.*)", "destination": "/edp/index.html" }
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/edp/assets/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/edp/$1" },
+    { "src": "/(.*)", "dest": "/edp/index.html" }
   ]
 }
