@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | Agility & Reflex Training Device</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="passwordGate" class="password-gate">
+        <div class="password-card">
+            <h2>Enter demo tunnel password</h2>
+            <input id="passwordInput" type="password" placeholder="Password">
+            <div class="pw-actions">
+                <button id="passwordSubmit" class="btn">Enter</button>
+            </div>
+            <p class="pw-help">This is a demo client-side gate for the tunnel URL.</p>
+        </div>
+    </div>
+
+    <div class="container dashboard" id="pageContent">
+        <header>
+            <h1>Training Session Dashboard</h1>
+            <a href="index.html" class="btn btn-back">&#8592; Home</a>
+        </header>
+        <section class="controls">
+            <div class="control-group">
+                <label for="sportSelect">Sport</label>
+                <select id="sportSelect">
+                    <option>Athletics</option>
+                    <option>Football</option>
+                    <option>Cricket</option>
+                    <option>Badminton</option>
+                    <option>Boxing</option>
+                    <option>Rehab</option>
+                </select>
+                <div class="threshold">Threshold: <span id="thresholdValue">--</span> ms</div>
+            </div>
+            <div class="control-group">
+                <label for="timerInput">Session Timer (sec)</label>
+                <input id="timerInput" type="number" min="5" value="60">
+                <div class="countdown">Time left: <span id="countdownDisplay">0:00</span></div>
+            </div>
+            <div class="control-group actions">
+                <button id="startBtn" class="btn">Start Session</button>
+                <button id="stopBtn" class="btn btn-back">Stop</button>
+            </div>
+        </section>
+        <section class="summary-cards">
+            <div class="card" id="total-reactions">
+                <h2>Total Reactions</h2>
+                <p id="totalReactionsValue">0</p>
+            </div>
+            <div class="card" id="avg-reaction-time">
+                <h2>Avg. Reaction Time</h2>
+                <p id="avgReactionTimeValue">0 ms</p>
+            </div>
+            <div class="card" id="accuracy">
+                <h2>Accuracy</h2>
+                <p id="accuracyValue">0%</p>
+            </div>
+            <div class="card" id="session-duration">
+                <h2>Session Duration</h2>
+                <p id="sessionDurationValue">0:00</p>
+            </div>
+        </section>
+        <section class="charts-section">
+            <div class="chart-card">
+                <h3>Reaction Time vs Attempts</h3>
+                <canvas id="reactionTimeChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Hits vs Misses</h3>
+                <canvas id="hitMissChart"></canvas>
+            </div>
+        </section>
+        <section class="log-section">
+            <h3>Session Log</h3>
+            <table id="sessionLogTable">
+                <thead>
+                    <tr>
+                        <th>Attempt</th>
+                        <th>Reaction Time (ms)</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by script.js -->
+                </tbody>
+            </table>
+        </section>
+        <section class="future-scope">
+            <h3>Future Scope</h3>
+            <ul>
+                <li>ESP32 + Wi-Fi integration</li>
+                <li>Real-time data upload</li>
+                <li>AI-based adaptive difficulty</li>
+                <li>Mobile app support</li>
+            </ul>
+        </section>
+    </div>
+    <script src="assets/script.js"></script>
+</body>
+</html>

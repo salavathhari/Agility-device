@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign up — Agility & Reflex</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <div class="container" style="max-width:520px;margin:60px auto;">
+        <header>
+            <h1>Create account</h1>
+        </header>
+        <form id="signupForm" class="auth-form">
+            <div class="form-row">
+                <label for="signupName">Full name</label>
+                <input id="signupName" type="text" required placeholder="Your name">
+            </div>
+            <div class="form-row">
+                <label for="signupEmail">Email</label>
+                <input id="signupEmail" type="email" required placeholder="you@example.com">
+            </div>
+            <div class="form-row">
+                <label for="signupPassword">Password</label>
+                <input id="signupPassword" type="password" required placeholder="Choose a password">
+            </div>
+            <div class="form-row">
+                <label for="signupConfirm">Confirm password</label>
+                <input id="signupConfirm" type="password" required placeholder="Repeat password">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Create account</button>
+                <a href="login.html" class="btn btn-back" style="margin-left:8px;">Log in</a>
+            </div>
+            <p id="signupMessage" class="muted"></p>
+        </form>
+    </div>
+    <script src="assets/script.js"></script>
+</body>
+</html>
