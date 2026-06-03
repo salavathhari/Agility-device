@@ -627,3 +627,31 @@ function initQR(){
         img.alt = 'Scan to open this site on your phone';
     } catch(e){ console.error('QR generation failed', e); }
 }
+
+// Export for testing (Node.js / Jest)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        sessionData,
+        sportThresholds,
+        formatDuration,
+        isoDate,
+        daysBetween,
+        isDashboardPage,
+        saveUser,
+        findUserByEmail,
+        loadProgress,
+        saveProgress,
+        getCurrentUserKey,
+        handleSessionCompletion,
+        updateStreakUI,
+        showToast,
+        loadLeaderboard,
+        saveLeaderboard,
+        updateLeaderboardEntry,
+        updateLeaderboardUI,
+        updateSummaryCards,
+        renderSessionLogTable,
+        initReactionTimeChart,
+        initHitMissChart,
+    };
+}
