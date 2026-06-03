@@ -45,6 +45,14 @@ function formatDuration(sec) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Refresh all dashboard UI components (charts, table, summary)
+function refreshDashboardUI() {
+    updateSummaryCards();
+    initReactionTimeChart();
+    initHitMissChart();
+    renderSessionLogTable();
+}
+
 // Update summary cards based on displayedAttempts
 function updateSummaryCards() {
     const totalReactions = displayedAttempts.length;
@@ -160,10 +168,7 @@ function initDashboard() {
     document.getElementById('stopBtn').addEventListener('click', stopSession);
 
     // initial full render
-    updateSummaryCards();
-    initReactionTimeChart();
-    initHitMissChart();
-    renderSessionLogTable();
+    refreshDashboardUI();
 }
 
 // Return true when current document contains dashboard-specific elements
@@ -184,10 +189,7 @@ function startSession() {
     // prepare for playback: start empty and push attempts one by one
     displayedAttempts = [];
     playIndex = 0;
-    updateSummaryCards();
-    initReactionTimeChart();
-    initHitMissChart();
-    renderSessionLogTable();
+    refreshDashboardUI();
 
     // countdown interval
     countdownInterval = setInterval(() => {
@@ -210,10 +212,7 @@ function startSession() {
         playIndex += 1;
 
         // update charts and table
-        initReactionTimeChart();
-        initHitMissChart();
-        renderSessionLogTable();
-        updateSummaryCards();
+        refreshDashboardUI();
     }, 1200);
 
     // disable start while running
@@ -242,21 +241,17 @@ function stopSession() {
 // Streaks, points, rewards
 // -----------------------
 function getCurrentUserKey() {
-    const demo = sessionStorage.getItem('demo_user');
-    if (!demo) return 'progress_guest';
-    try { const user = JSON.parse(demo); return `progress_${user.email.replace(/[^a-z0-9@.\-_]/gi,'')}`; } catch { return 'progress_guest'; }
+    const user = getDemoUser();
+    if (!user) return 'progress_guest';
+    return `progress_${sanitizeEmail(user.email)}`;
 }
 
 function loadProgress() {
-    const key = getCurrentUserKey();
-    const raw = localStorage.getItem(key);
-    if (!raw) return { streak: 0, lastDate: null, points: 0, rewards: [] };
-    try { return JSON.parse(raw); } catch { return { streak: 0, lastDate: null, points: 0, rewards: [] }; }
+    return getStorageJSON(getCurrentUserKey(), { streak: 0, lastDate: null, points: 0, rewards: [] });
 }
 
 function saveProgress(p) {
-    const key = getCurrentUserKey();
-    localStorage.setItem(key, JSON.stringify(p));
+    setStorageJSON(getCurrentUserKey(), p);
 }
 
 function isoDate(d) { const dt = d ? new Date(d) : new Date(); return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).toISOString().slice(0,10); }
@@ -381,20 +376,21 @@ function initStreaks() {
 // Leaderboard (client-side demo)
 // -----------------------
 function loadLeaderboard() {
-    try { return JSON.parse(localStorage.getItem('ag_leaderboard') || '[]'); } catch { return []; }
+    return getStorageJSON('ag_leaderboard', []);
 }
 
 function saveLeaderboard(lb) {
-    localStorage.setItem('ag_leaderboard', JSON.stringify(lb));
+    setStorageJSON('ag_leaderboard', lb);
 }
 
 function updateLeaderboardEntry(sessionPoints) {
-    const demo = sessionStorage.getItem('demo_user');
     const lb = loadLeaderboard();
+    const user = getDemoUser();
     let email = 'guest';
     let name = 'Guest';
-    if (demo) {
-        try { const u = JSON.parse(demo); email = u.email || email; name = u.name || name; } catch {}
+    if (user) {
+        email = user.email || email;
+        name = user.name || name;
     }
 
     // find existing entry
@@ -405,8 +401,8 @@ function updateLeaderboardEntry(sessionPoints) {
     }
 
     // sync with saved progress if available
-    const progressKey = `progress_${email.replace(/[^a-z0-9@.\-_]/gi,'')}`;
-    const prog = (() => { try { return JSON.parse(localStorage.getItem(progressKey) || 'null'); } catch { return null; } })();
+    const progressKey = `progress_${sanitizeEmail(email)}`;
+    const prog = getStorageJSON(progressKey, null);
     if (prog && typeof prog.points === 'number') {
         entry.points = prog.points;
         entry.streak = prog.streak || entry.streak;
@@ -446,23 +442,22 @@ function updateLeaderboardUI() {
     }
 
     // show current user's rank
-    const demo = sessionStorage.getItem('demo_user');
-    let email = 'guest';
-    if (demo) { try { email = JSON.parse(demo).email || 'guest'; } catch {} }
+    const user = getDemoUser();
+    const email = user ? (user.email || 'guest') : 'guest';
     const rank = lb.findIndex(e => e.email === email);
     if (yourPosEl) yourPosEl.textContent = rank >= 0 ? `#${rank+1} — ${lb[rank].points} pts` : 'Unranked — complete a session to join';
-    if (yourNote) yourNote.textContent = demo ? `Logged in as ${JSON.parse(demo).name || demo}` : 'Sign up to persist progress across devices.';
+    if (yourNote) yourNote.textContent = user ? `Logged in as ${user.name || email}` : 'Sign up to persist progress across devices.';
 }
 
 // --- Simple client-side auth (demo only) ---
 function saveUser(user) {
-    const users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    const users = getStorageJSON('demo_users', []);
     users.push(user);
-    localStorage.setItem('demo_users', JSON.stringify(users));
+    setStorageJSON('demo_users', users);
 }
 
 function findUserByEmail(email) {
-    const users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    const users = getStorageJSON('demo_users', []);
     return users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
 }
 
@@ -498,44 +493,35 @@ function initAuthForms() {
             const msg = document.getElementById('signupMessage');
 
             if (!name || !email || !pw) {
-                msg.textContent = 'Please complete all fields.';
-                msg.style.color = '#b45309';
+                showFormMessage(msg, 'Please complete all fields.', 'warning');
                 return;
             }
             if (pw !== pw2) {
-                msg.textContent = 'Passwords do not match.';
-                msg.style.color = '#7f1d1d';
+                showFormMessage(msg, 'Passwords do not match.', 'error');
                 return;
             }
 
             // POST to serverless signup endpoint
-            try{
+            try {
                 const res = await fetch('/api/auth/signup', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password: pw })
                 });
-                const j = await res.json().catch(()=>({}));
+                const j = await res.json().catch(() => ({}));
                 if (res.ok) {
-                    // Auto-login on successful signup
-                    msg.textContent = 'Account created — logging you in...'; msg.style.color = '#064e3b';
-                    const user = j.user;
-                    sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                    showFormMessage(msg, 'Account created — logging you in...', 'success');
+                    authRedirect(j.user.name, j.user.email);
                     return;
                 }
-                // If API responded but not OK, or returned 404-like body, fallback to localStorage
-                // (handles serverless file-store race or missing API)
-                // Try to save locally as a demo fallback
+                // API responded non-OK -> fallback to localStorage
                 saveUser({ name, email, password: pw });
-                msg.textContent = 'Account created (local) — logging you in...'; msg.style.color = '#064e3b';
-                sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
-            } catch(err){
+                showFormMessage(msg, 'Account created (local) — logging you in...', 'success');
+                authRedirect(name, email);
+            } catch (err) {
                 // Network error -> fallback to localStorage
                 saveUser({ name, email, password: pw });
-                msg.textContent = 'Account created (local offline) — logging you in...'; msg.style.color = '#064e3b';
-                sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                showFormMessage(msg, 'Account created (local offline) — logging you in...', 'success');
+                authRedirect(name, email);
             }
         });
     }
@@ -546,30 +532,28 @@ function initAuthForms() {
             const email = (document.getElementById('loginEmail').value || '').trim();
             const pw = document.getElementById('loginPassword').value || '';
             const msg = document.getElementById('loginMessage');
-            try{
-                const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ email, password: pw }) });
-                const j = await res.json().catch(()=>({}));
+
+            function localLogin(suffix) {
+                const user = findUserByEmail(email);
+                if (!user) { showFormMessage(msg, `No account found${suffix}. Please sign up.`, 'warning'); return; }
+                if (user.password !== pw) { showFormMessage(msg, 'Incorrect password.', 'error'); return; }
+                showFormMessage(msg, `Login successful (local${suffix}) — redirecting...`, 'success');
+                authRedirect(user.name, user.email);
+            }
+
+            try {
+                const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pw }) });
+                const j = await res.json().catch(() => ({}));
                 if (res.ok) {
-                    sessionStorage.setItem('demo_user', JSON.stringify({ name: j.user.name, email: j.user.email }));
-                    msg.textContent = 'Login successful — redirecting...'; msg.style.color = '#064e3b';
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                    showFormMessage(msg, 'Login successful — redirecting...', 'success');
+                    authRedirect(j.user.name, j.user.email);
                     return;
                 }
-                // API returned non-ok (e.g., 404) -> fallback to localStorage check
-                const user = findUserByEmail(email);
-                if (!user) { msg.textContent = 'No account found. Please sign up.'; msg.style.color = '#b45309'; return; }
-                if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
-                sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
-                msg.textContent = 'Login successful (local) — redirecting...'; msg.style.color = '#064e3b';
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
-            }catch(err){
+                // API non-ok -> fallback to localStorage
+                localLogin('');
+            } catch (err) {
                 // Network failure -> fallback to localStorage
-                const user = findUserByEmail(email);
-                if (!user) { msg.textContent = 'No account found (offline). Please sign up.'; msg.style.color = '#b45309'; return; }
-                if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
-                sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
-                msg.textContent = 'Login successful (local offline) — redirecting...'; msg.style.color = '#064e3b';
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                localLogin(' offline');
             }
         });
     }
@@ -599,19 +583,18 @@ async function initApiStatus() {
     return false;
 }
 
-// On page load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', async () => {
-        if (isDashboardPage()) initDashboard();
-        initAuthForms();
-        initQR();
-        initApiStatus();
-    });
-} else {
+// Page initialization
+function initPage() {
     if (isDashboardPage()) initDashboard();
     initAuthForms();
     initQR();
     initApiStatus();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPage);
+} else {
+    initPage();
 }
 
 // Generate QR code image that links to the current page URL (uses Google Chart API)
