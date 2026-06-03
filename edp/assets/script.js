@@ -1,5 +1,31 @@
 // script.js - Demo data and dashboard logic for Agility & Reflex Training Device
 
+// --- Security utilities ---
+
+// Hash password using SHA-256 (Web Crypto API)
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Sanitize a string for safe insertion into HTML (prevent XSS)
+function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// Basic input validation: trim and limit length
+function sanitizeInput(str, maxLength) {
+    if (typeof str !== 'string') return '';
+    return str.trim().slice(0, maxLength || 200);
+}
+
+// --- End security utilities ---
+
 // Dummy session data (full dataset used for demo)
 const sessionData = {
     attempts: [
@@ -439,7 +465,7 @@ function updateLeaderboardUI() {
                 const row = document.createElement('div');
                 row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems='center';
                 row.style.padding = '6px 4px';
-                row.innerHTML = `<div style="display:flex;gap:8px;align-items:center;"><strong>#${i+1}</strong><div style="min-width:120px;">${e.name}</div></div><div style="color:#0f172a;font-weight:600;">${e.points} pts</div>`;
+                row.innerHTML = `<div style="display:flex;gap:8px;align-items:center;"><strong>#${i+1}</strong><div style="min-width:120px;">${sanitizeHTML(e.name)}</div></div><div style="color:#0f172a;font-weight:600;">${sanitizeHTML(String(e.points))} pts</div>`;
                 listEl.appendChild(row);
             });
         }
@@ -456,8 +482,9 @@ function updateLeaderboardUI() {
 
 // --- Simple client-side auth (demo only) ---
 function saveUser(user) {
+    // Never store plaintext passwords — only the hash
     const users = JSON.parse(localStorage.getItem('demo_users') || '[]');
-    users.push(user);
+    users.push({ name: user.name, email: user.email, passwordHash: user.passwordHash });
     localStorage.setItem('demo_users', JSON.stringify(users));
 }
 
@@ -491,8 +518,8 @@ function initAuthForms() {
     if (signupForm) {
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = (document.getElementById('signupName').value || '').trim();
-            const email = (document.getElementById('signupEmail').value || '').trim();
+            const name = sanitizeInput(document.getElementById('signupName').value, 100);
+            const email = sanitizeInput(document.getElementById('signupEmail').value, 254);
             const pw = document.getElementById('signupPassword').value || '';
             const pw2 = document.getElementById('signupConfirm').value || '';
             const msg = document.getElementById('signupMessage');
@@ -502,11 +529,18 @@ function initAuthForms() {
                 msg.style.color = '#b45309';
                 return;
             }
+            if (pw.length < 8) {
+                msg.textContent = 'Password must be at least 8 characters.';
+                msg.style.color = '#7f1d1d';
+                return;
+            }
             if (pw !== pw2) {
                 msg.textContent = 'Passwords do not match.';
                 msg.style.color = '#7f1d1d';
                 return;
             }
+
+            const pwHash = await hashPassword(pw);
 
             // POST to serverless signup endpoint
             try{
@@ -523,16 +557,14 @@ function initAuthForms() {
                     setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
                     return;
                 }
-                // If API responded but not OK, or returned 404-like body, fallback to localStorage
-                // (handles serverless file-store race or missing API)
-                // Try to save locally as a demo fallback
-                saveUser({ name, email, password: pw });
+                // API not available — fallback to localStorage with hashed password
+                saveUser({ name, email, passwordHash: pwHash });
                 msg.textContent = 'Account created (local) — logging you in...'; msg.style.color = '#064e3b';
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
             } catch(err){
-                // Network error -> fallback to localStorage
-                saveUser({ name, email, password: pw });
+                // Network error -> fallback to localStorage with hashed password
+                saveUser({ name, email, passwordHash: pwHash });
                 msg.textContent = 'Account created (local offline) — logging you in...'; msg.style.color = '#064e3b';
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
@@ -543,7 +575,7 @@ function initAuthForms() {
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = (document.getElementById('loginEmail').value || '').trim();
+            const email = sanitizeInput(document.getElementById('loginEmail').value, 254);
             const pw = document.getElementById('loginPassword').value || '';
             const msg = document.getElementById('loginMessage');
             try{
@@ -555,18 +587,20 @@ function initAuthForms() {
                     setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
                     return;
                 }
-                // API returned non-ok (e.g., 404) -> fallback to localStorage check
+                // API returned non-ok -> fallback to localStorage check with hash comparison
                 const user = findUserByEmail(email);
                 if (!user) { msg.textContent = 'No account found. Please sign up.'; msg.style.color = '#b45309'; return; }
-                if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
+                const pwHash = await hashPassword(pw);
+                if (user.passwordHash !== pwHash) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
                 msg.textContent = 'Login successful (local) — redirecting...'; msg.style.color = '#064e3b';
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
             }catch(err){
-                // Network failure -> fallback to localStorage
+                // Network failure -> fallback to localStorage with hash comparison
                 const user = findUserByEmail(email);
                 if (!user) { msg.textContent = 'No account found (offline). Please sign up.'; msg.style.color = '#b45309'; return; }
-                if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
+                const pwHash = await hashPassword(pw);
+                if (user.passwordHash !== pwHash) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
                 msg.textContent = 'Login successful (local offline) — redirecting...'; msg.style.color = '#064e3b';
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
