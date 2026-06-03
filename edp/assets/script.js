@@ -234,6 +234,7 @@ function stopSession() {
             handleSessionCompletion(displayedAttempts);
         } catch (err) {
             console.error('Streak handling failed', err);
+            showToast('Could not save session progress — please try again.');
         }
     }
 }
@@ -244,14 +245,14 @@ function stopSession() {
 function getCurrentUserKey() {
     const demo = sessionStorage.getItem('demo_user');
     if (!demo) return 'progress_guest';
-    try { const user = JSON.parse(demo); return `progress_${user.email.replace(/[^a-z0-9@.\-_]/gi,'')}`; } catch { return 'progress_guest'; }
+    try { const user = JSON.parse(demo); return `progress_${user.email.replace(/[^a-z0-9@.\-_]/gi,'')}`; } catch (e) { console.warn('Failed to parse demo_user from sessionStorage, defaulting to guest', e); return 'progress_guest'; }
 }
 
 function loadProgress() {
     const key = getCurrentUserKey();
     const raw = localStorage.getItem(key);
     if (!raw) return { streak: 0, lastDate: null, points: 0, rewards: [] };
-    try { return JSON.parse(raw); } catch { return { streak: 0, lastDate: null, points: 0, rewards: [] }; }
+    try { return JSON.parse(raw); } catch (e) { console.warn('Corrupt progress data in localStorage, resetting', e); return { streak: 0, lastDate: null, points: 0, rewards: [] }; }
 }
 
 function saveProgress(p) {
@@ -315,7 +316,7 @@ function handleSessionCompletion(attempts) {
     // show a short celebratory message
     showToast(`Session recorded — +${points} pts! Streak: ${progress.streak} day(s)`);
     // update leaderboard with new points
-    try { updateLeaderboardEntry(points); } catch (e) { console.error('Leaderboard update failed', e); }
+    try { updateLeaderboardEntry(points); } catch (e) { console.error('Leaderboard update failed', e); showToast('Leaderboard could not be updated.'); }
 }
 
 function updateStreakUI(progress) {
@@ -381,7 +382,7 @@ function initStreaks() {
 // Leaderboard (client-side demo)
 // -----------------------
 function loadLeaderboard() {
-    try { return JSON.parse(localStorage.getItem('ag_leaderboard') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('ag_leaderboard') || '[]'); } catch (e) { console.warn('Corrupt leaderboard data in localStorage, resetting', e); return []; }
 }
 
 function saveLeaderboard(lb) {
@@ -394,7 +395,7 @@ function updateLeaderboardEntry(sessionPoints) {
     let email = 'guest';
     let name = 'Guest';
     if (demo) {
-        try { const u = JSON.parse(demo); email = u.email || email; name = u.name || name; } catch {}
+        try { const u = JSON.parse(demo); email = u.email || email; name = u.name || name; } catch (e) { console.warn('Failed to parse demo_user in leaderboard entry update', e); }
     }
 
     // find existing entry
@@ -406,7 +407,7 @@ function updateLeaderboardEntry(sessionPoints) {
 
     // sync with saved progress if available
     const progressKey = `progress_${email.replace(/[^a-z0-9@.\-_]/gi,'')}`;
-    const prog = (() => { try { return JSON.parse(localStorage.getItem(progressKey) || 'null'); } catch { return null; } })();
+    const prog = (() => { try { return JSON.parse(localStorage.getItem(progressKey) || 'null'); } catch (e) { console.warn('Corrupt progress data for leaderboard sync', e); return null; } })();
     if (prog && typeof prog.points === 'number') {
         entry.points = prog.points;
         entry.streak = prog.streak || entry.streak;
@@ -448,21 +449,40 @@ function updateLeaderboardUI() {
     // show current user's rank
     const demo = sessionStorage.getItem('demo_user');
     let email = 'guest';
-    if (demo) { try { email = JSON.parse(demo).email || 'guest'; } catch {} }
+    let userName = null;
+    if (demo) {
+        try {
+            const parsed = JSON.parse(demo);
+            email = parsed.email || 'guest';
+            userName = parsed.name || null;
+        } catch (e) { console.warn('Failed to parse demo_user for leaderboard position', e); }
+    }
     const rank = lb.findIndex(e => e.email === email);
     if (yourPosEl) yourPosEl.textContent = rank >= 0 ? `#${rank+1} — ${lb[rank].points} pts` : 'Unranked — complete a session to join';
-    if (yourNote) yourNote.textContent = demo ? `Logged in as ${JSON.parse(demo).name || demo}` : 'Sign up to persist progress across devices.';
+    if (yourNote) yourNote.textContent = demo ? `Logged in as ${userName || 'User'}` : 'Sign up to persist progress across devices.';
 }
 
 // --- Simple client-side auth (demo only) ---
 function saveUser(user) {
-    const users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    let users;
+    try {
+        users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    } catch (e) {
+        console.warn('Corrupt demo_users in localStorage, resetting', e);
+        users = [];
+    }
     users.push(user);
     localStorage.setItem('demo_users', JSON.stringify(users));
 }
 
 function findUserByEmail(email) {
-    const users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    let users;
+    try {
+        users = JSON.parse(localStorage.getItem('demo_users') || '[]');
+    } catch (e) {
+        console.warn('Corrupt demo_users in localStorage, resetting', e);
+        users = [];
+    }
     return users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
 }
 
@@ -514,24 +534,32 @@ function initAuthForms() {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, password: pw })
                 });
-                const j = await res.json().catch(()=>({}));
+                const j = await res.json().catch((parseErr) => {
+                    console.warn('Signup: failed to parse API response body', parseErr);
+                    return {};
+                });
                 if (res.ok) {
-                    // Auto-login on successful signup
-                    msg.textContent = 'Account created — logging you in...'; msg.style.color = '#064e3b';
                     const user = j.user;
-                    sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
-                    return;
+                    if (!user || !user.email) {
+                        console.warn('Signup API returned OK but response missing user data', j);
+                        msg.textContent = 'Unexpected server response — saving locally.'; msg.style.color = '#b45309';
+                    } else {
+                        msg.textContent = 'Account created — logging you in...'; msg.style.color = '#064e3b';
+                        sessionStorage.setItem('demo_user', JSON.stringify({ name: user.name, email: user.email }));
+                        setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                        return;
+                    }
+                } else {
+                    const reason = j.error || j.message || `Server responded with ${res.status}`;
+                    console.warn('Signup API error, falling back to local storage:', reason);
                 }
-                // If API responded but not OK, or returned 404-like body, fallback to localStorage
-                // (handles serverless file-store race or missing API)
-                // Try to save locally as a demo fallback
+                // Fallback to localStorage
                 saveUser({ name, email, password: pw });
                 msg.textContent = 'Account created (local) — logging you in...'; msg.style.color = '#064e3b';
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
             } catch(err){
-                // Network error -> fallback to localStorage
+                console.warn('Signup network error, falling back to local storage', err);
                 saveUser({ name, email, password: pw });
                 msg.textContent = 'Account created (local offline) — logging you in...'; msg.style.color = '#064e3b';
                 sessionStorage.setItem('demo_user', JSON.stringify({ name: name, email: email }));
@@ -548,14 +576,28 @@ function initAuthForms() {
             const msg = document.getElementById('loginMessage');
             try{
                 const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ email, password: pw }) });
-                const j = await res.json().catch(()=>({}));
+                const j = await res.json().catch((parseErr) => {
+                    console.warn('Login: failed to parse API response body', parseErr);
+                    return {};
+                });
                 if (res.ok) {
-                    sessionStorage.setItem('demo_user', JSON.stringify({ name: j.user.name, email: j.user.email }));
-                    msg.textContent = 'Login successful — redirecting...'; msg.style.color = '#064e3b';
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                    if (!j.user || !j.user.email) {
+                        console.warn('Login API returned OK but response missing user data', j);
+                        msg.textContent = 'Unexpected server response — trying local login.'; msg.style.color = '#b45309';
+                    } else {
+                        sessionStorage.setItem('demo_user', JSON.stringify({ name: j.user.name, email: j.user.email }));
+                        msg.textContent = 'Login successful — redirecting...'; msg.style.color = '#064e3b';
+                        setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+                        return;
+                    }
+                } else if (res.status >= 400 && res.status < 500) {
+                    const reason = j.error || j.message || 'Invalid credentials';
+                    msg.textContent = reason; msg.style.color = '#7f1d1d';
                     return;
+                } else {
+                    console.warn('Login API server error, falling back to local storage:', res.status);
                 }
-                // API returned non-ok (e.g., 404) -> fallback to localStorage check
+                // Fallback to localStorage check
                 const user = findUserByEmail(email);
                 if (!user) { msg.textContent = 'No account found. Please sign up.'; msg.style.color = '#b45309'; return; }
                 if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
@@ -563,7 +605,7 @@ function initAuthForms() {
                 msg.textContent = 'Login successful (local) — redirecting...'; msg.style.color = '#064e3b';
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
             }catch(err){
-                // Network failure -> fallback to localStorage
+                console.warn('Login network error, falling back to local storage', err);
                 const user = findUserByEmail(email);
                 if (!user) { msg.textContent = 'No account found (offline). Please sign up.'; msg.style.color = '#b45309'; return; }
                 if (user.password !== pw) { msg.textContent = 'Incorrect password.'; msg.style.color = '#7f1d1d'; return; }
@@ -590,8 +632,14 @@ async function initApiStatus() {
             el.title = 'API reachable';
             return true;
         }
+        console.warn('API ping returned non-ok status:', res.status);
     } catch (e) {
-        // fallthrough to offline state
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') {
+            console.warn('API ping timed out');
+        } else {
+            console.warn('API ping failed:', e.message || e);
+        }
     }
     el.textContent = 'offline';
     el.style.color = '#b91c1c';
@@ -602,15 +650,15 @@ async function initApiStatus() {
 // On page load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {
-        if (isDashboardPage()) initDashboard();
-        initAuthForms();
-        initQR();
+        try { if (isDashboardPage()) initDashboard(); } catch (e) { console.error('Dashboard initialization failed', e); }
+        try { initAuthForms(); } catch (e) { console.error('Auth forms initialization failed', e); }
+        try { initQR(); } catch (e) { console.error('QR code initialization failed', e); }
         initApiStatus();
     });
 } else {
-    if (isDashboardPage()) initDashboard();
-    initAuthForms();
-    initQR();
+    try { if (isDashboardPage()) initDashboard(); } catch (e) { console.error('Dashboard initialization failed', e); }
+    try { initAuthForms(); } catch (e) { console.error('Auth forms initialization failed', e); }
+    try { initQR(); } catch (e) { console.error('QR code initialization failed', e); }
     initApiStatus();
 }
 
@@ -620,10 +668,18 @@ function initQR(){
     if (!img) return;
     try{
         const url = window.location.href;
-        // Use api.qrserver.com which reliably returns a QR image for the given data
         const size = 300;
         const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encodeURIComponent(url) + '&format=png';
         img.src = qrSrc;
         img.alt = 'Scan to open this site on your phone';
-    } catch(e){ console.error('QR generation failed', e); }
+        img.onerror = () => {
+            console.warn('QR code image failed to load');
+            img.alt = 'QR code unavailable';
+            img.style.display = 'none';
+        };
+    } catch(e){
+        console.error('QR generation failed', e);
+        img.alt = 'QR code unavailable';
+        img.style.display = 'none';
+    }
 }
